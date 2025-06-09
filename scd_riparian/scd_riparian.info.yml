@@ -1,0 +1,12 @@
+name: Riparian Planting Tracker
+description: Adds features for tracking Riparian Plantings.
+type: module
+package: farmOS Contrib
+core_version_requirement: ^10
+dependencies:
+  - farm_activity
+  - farm_input
+  - farm_land
+  - farm_observation
+  - farm_quick
+  - farm_quantity_standard

@@ -1,0 +1,13 @@
+langcode: en
+status: true
+dependencies:
+  enforced:
+    module:
+      - scd_riparian
+id: land_type_site
+color: orange
+conditions:
+  asset_type:
+    - land
+  land_type:
+    - site

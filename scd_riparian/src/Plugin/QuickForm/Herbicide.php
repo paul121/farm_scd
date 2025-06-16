@@ -33,13 +33,17 @@ class Herbicide extends RiparianMaintenanceBase {
   public function buildForm(array $form, FormStateInterface $form_state, ?string $id = NULL) {
     $form = parent::buildForm($form, $form_state, $id);
 
-    $form['record_data']['weather'] = $this->buildInlineContainer();
-    $form['record_data']['weather']['air_temp'] = [
+    $form['record_data']['weather']= [
+      '#type' => 'fieldset',
+      '#title' => $this->t('Weather'),
+    ];
+    $form['record_data']['weather']['group'] = $this->buildInlineContainer();
+    $form['record_data']['weather']['group']['air_temp'] = [
       '#type' => 'number',
       '#title' => $this->t('Air temperature'),
       '#step' => 1,
     ];
-    $form['record_data']['weather']['wind_speed'] = [
+    $form['record_data']['weather']['group']['wind_speed'] = [
       '#type' => 'number',
       '#title' => $this->t('Wind speed (mph)'),
       '#step' => 1,
@@ -55,51 +59,55 @@ class Herbicide extends RiparianMaintenanceBase {
       $this->t('South West'),
     ];
     $wind_direction_options = array_combine($wind_directions, $wind_directions);
-    $form['record_data']['weather']['wind_direction'] = [
+    $form['record_data']['weather']['group']['wind_direction'] = [
       '#type' => 'select',
       '#title' => $this->t('Wind direction'),
       '#options' => $wind_direction_options,
       '#required' => TRUE,
     ];
 
+    $form['record_data']['product']= [
+      '#type' => 'fieldset',
+      '#title' => $this->t('Product'),
+    ];
     $material_types = $this->entityTypeManager->getStorage('taxonomy_term')->loadTree('material_type');
     $material_type_options = [];
     foreach ($material_types as $term) {
       $material_type_options[$term->tid] = $term->name;
     }
-    $form['record_data']['product'] = $this->buildInlineContainer();
-    $form['record_data']['product']['material'] = [
+    $form['record_data']['product']['group'] = $this->buildInlineContainer();
+    $form['record_data']['product']['group']['material'] = [
       '#type' => 'select',
       '#title' => $this->t('Herbicide product'),
       '#options' => $material_type_options,
     ];
-    $form['record_data']['product']['total_applied'] = [
+    $form['record_data']['product']['group']['total_applied'] = [
       '#type' => 'number',
       '#title' => $this->t('Total product applied (qts)'),
       '#min' => 0,
       '#step' => 0.1,
     ];
-    $form['record_data']['product']['concentration'] = [
+    $form['record_data']['product']['group']['concentration'] = [
       '#type' => 'number',
       '#title' => $this->t('Product concentration (oz/gal)'),
       '#min' => 0,
       '#step' => 0.1,
     ];
 
-    $form['record_data']['acres'] = $this->buildInlineContainer();
-    $form['record_data']['acres']['acres_treated'] = [
+    $form['record_data']['product']['acres'] = $this->buildInlineContainer();
+    $form['record_data']['product']['acres']['acres_treated'] = [
       '#type' => 'number',
       '#title' => $this->t('Acres treated'),
       '#step' => 0.1,
     ];
-    $form['record_data']['acres']['rate_per_acre'] = [
+    $form['record_data']['product']['acres']['rate_per_acre'] = [
       '#type' => 'number',
       '#title' => $this->t('Rate per acre'),
       '#min' => 0,
       '#step' => 0.1,
     ];
 
-    $form['record_data']['acres']['rate_per_acre_unit'] = [
+    $form['record_data']['product']['acres']['rate_per_acre_unit'] = [
       '#type' => 'select',
       '#title' => $this->t('Rate units'),
       '#options' => [

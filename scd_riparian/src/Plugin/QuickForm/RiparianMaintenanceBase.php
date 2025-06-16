@@ -116,12 +116,6 @@ class RiparianMaintenanceBase extends QuickFormBase implements ConfigurableQuick
       ],
     ];
 
-    $options = [];
-    if (($parent = $form_state->getValue('parent')) && is_numeric($parent)) {
-      $options = $this->getSubSiteOptions((int) $parent);
-      $parent = $this->entityTypeManager->getStorage('asset')->load($parent);
-    }
-
     $form['asset_wrapper'] = [
       '#type' => 'container',
       '#attributes' => [
@@ -129,14 +123,18 @@ class RiparianMaintenanceBase extends QuickFormBase implements ConfigurableQuick
       ],
     ];
 
-    $form['asset_wrapper']['asset'] = [
-      '#type' => 'checkboxes',
-      '#title' => $this->t('Sub-sites'),
-      '#description' => $this->t('Select sub-sites of the selected site.'),
-      '#options' => $options,
-      '#default_value' => array_keys($options),
-      '#required' => TRUE,
-    ];
+    // Add sub-site asset selection.
+    if (($parent = $form_state->getValue('parent')) && is_numeric($parent)) {
+      $options = $this->getSubSiteOptions((int) $parent);
+      $form['asset_wrapper']['asset'] = [
+        '#type' => 'checkboxes',
+        '#title' => $this->t('Sub-sites'),
+        '#description' => $this->t('Select sub-sites of the selected site.'),
+        '#options' => $options,
+        '#default_value' => array_keys($options),
+        '#required' => TRUE,
+      ];
+    }
 
     $crew_lead_options = $this->getUserOptions(['farm_manager', 'farm_worker']);
     $form['owner'] = [

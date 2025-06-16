@@ -177,7 +177,7 @@ class RiparianMaintenanceBase extends QuickFormBase implements ConfigurableQuick
     ];
 
     $form['schedule_data']['date']['end_date'] = [
-      '#type' => 'date',
+      '#type' => 'datetime',
       '#title' => $this->t('End'),
       '#default_value' => new DrupalDateTime('today 12:00', $this->currentUser->getTimeZone()),
     ];
@@ -328,7 +328,39 @@ class RiparianMaintenanceBase extends QuickFormBase implements ConfigurableQuick
   public function submitForm(array &$form, FormStateInterface $form_state) {
 
     if ($form_state->getValue('schedule') == 'schedule') {
-      // not implemented
+
+      // Extract scheduling parameters
+      $start_date = $form_state->getValue('schedule_data')['date']['start_date'];
+      $end_date = $form_state->getValue('schedule_data')['date']['end_date'];
+      $week_interval = $form_state->getValue('schedule_data')['week_interval'];
+
+      // Validate dates
+      if (!$start_date instanceof DrupalDateTime || !$end_date instanceof DrupalDateTime) {
+        $this->messenger->addError($this->t('Invalid date selection.'));
+        return;
+      }
+
+      // Convert to timestamp for easier manipulation
+      $current_date = $start_date->getTimestamp();
+      $end_timestamp = $end_date->getTimestamp();
+
+      // Create logs for each sub-site at specified intervals
+      $logs_created = 0;
+      while ($current_date <= $end_timestamp) {
+
+        // Create the log.
+        $log = $this->prepareLog($form, $form_state);
+        $log['timestamp'] = $current_date;
+        $log['revision_log_message'] = 'Scheduled by ' . $this->currentUser->getAccountName();
+        $this->createLog($log);
+
+        // Move to next interval.
+        $logs_created++;
+        $current_date = strtotime("+{$week_interval} weeks", $current_date);
+      }
+
+      // Provide feedback
+      $this->messenger->addStatus($this->t('Created @count scheduled maintenance logs.', ['@count' => $logs_created]));
     }
 
     if ($form_state->getValue('schedule') == 'record') {

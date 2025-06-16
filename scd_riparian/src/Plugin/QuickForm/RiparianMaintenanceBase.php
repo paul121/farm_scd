@@ -17,6 +17,7 @@ use Drupal\farm_quick\Traits\ConfigurableQuickFormTrait;
 use Drupal\farm_quick\Traits\QuickFormElementsTrait;
 use Drupal\farm_quick\Traits\QuickLogTrait;
 use Drupal\farm_quick\Traits\QuickTermTrait;
+use Drupal\scd_riparian\Traits\QuickQuantityFieldTrait;
 use Drupal\user\UserInterface;
 use Psr\Container\ContainerInterface;
 
@@ -26,8 +27,9 @@ use Psr\Container\ContainerInterface;
 class RiparianMaintenanceBase extends QuickFormBase implements ConfigurableQuickFormInterface {
 
   use ConfigurableQuickFormTrait;
-  use QuickLogTrait;
   use QuickFormElementsTrait;
+  use QuickLogTrait;
+  use QuickQuantityFieldTrait;
   use QuickTermTrait;
 
   /**
@@ -212,34 +214,28 @@ class RiparianMaintenanceBase extends QuickFormBase implements ConfigurableQuick
       '#default_value' => new DrupalDateTime('midnight', $this->currentUser->getTimeZone()),
     ];
 
-    $form['record_data']['time']['time_taken'] = [
-      '#type' => 'number',
-      '#title' => $this->t('Time taken (hours)'),
-      '#default_value' => 0,
-      '#min' => 0,
-      '#step' => 0.5,
-      '#lenth' => 5,
-    ];
+    $form['record_data']['time']['time_taken'] = $this->buildQuantityField([
+      'title' => $this->t('Time taken'),
+      'measure' => ['#value' => 'time'],
+      'units' => ['#value' => 'hours'],
+      'value' => ['#min' => 0, '#step' => 0.25],
+    ]);
 
     $form['record_data']['site'] = $this->buildInlineContainer();
 
-    $form['record_data']['site']['number_technicians'] = [
-      '#type' => 'number',
-      '#title' => $this->t('Number of technicians'),
-      '#default_value' => 0,
-      '#min' => 0,
-      '#step' => 1,
-      '#length' => 5,
-    ];
+    $form['record_data']['site']['number_of_technicians'] = $this->buildQuantityField([
+      'title' => $this->t('Number of technicians'),
+      'measure' => ['#value' => 'count'],
+      'units' => ['#type' => 'hidden'],
+      'value' => ['#min' => 0, '#step' => 1, '#default_value' => 1],
+    ]);
 
-    $form['record_data']['site']['percent_of_site'] = [
-      '#type' => 'number',
-      '#title' => $this->t('Percent of site'),
-      '#default_value' => 100,
-      '#min' => 0,
-      '#step' => 5,
-      '#length' => 5,
-    ];
+    $form['record_data']['site']['percent_of_site'] = $this->buildQuantityField([
+      'title' => $this->t('Percent of site'),
+      'measure' => ['#value' => 'ratio'],
+      'units' => ['#value' => '%'],
+      'value' => ['#min' => 0, '#step' => 5, '#default_value' => 100],
+    ]);
 
     $form['record_data']['notes'] = [
       '#type' => 'textarea',
@@ -379,26 +375,9 @@ class RiparianMaintenanceBase extends QuickFormBase implements ConfigurableQuick
       $log['notes'] = $form_state->getValue('notes');
 
       // Prepare quantities.
-      $log['quantity'][] = [
-        'type' => 'standard',
-        'label' => 'Time taken',
-        'value' => $form_state->getValue('time_taken'),
-        'measure' => 'time',
-        'units' => $this->createOrLoadTerm('hours', 'unit'),
-      ];
-      $log['quantity'][] = [
-        'type' => 'standard',
-        'label' => 'Percent of Site',
-        'value' => $form_state->getValue('percent_of_site'),
-        'measure' => 'ratio',
-        'units' => $this->createOrLoadTerm('%', 'unit'),
-      ];
-      $log['quantity'][] = [
-        'type' => 'standard',
-        'label' => 'Number of Technicians',
-        'value' => $form_state->getValue('number_technicians'),
-        'measure' => 'count',
-      ];
+      $log['quantity'][] = $form_state->getValue('time_taken');
+      $log['quantity'][] = $form_state->getValue('number_of_technicians');
+      $log['quantity'][] = $form_state->getValue('percent_of_site');;
     }
 
     return $log;

@@ -38,16 +38,19 @@ class Herbicide extends RiparianMaintenanceBase {
       '#title' => $this->t('Weather'),
     ];
     $form['record_data']['weather']['group'] = $this->buildInlineContainer();
-    $form['record_data']['weather']['group']['air_temp'] = [
-      '#type' => 'number',
-      '#title' => $this->t('Air temperature'),
-      '#step' => 1,
-    ];
-    $form['record_data']['weather']['group']['wind_speed'] = [
-      '#type' => 'number',
-      '#title' => $this->t('Wind speed (mph)'),
-      '#step' => 1,
-    ];
+    $form['record_data']['weather']['group']['air_temp'] = $this->buildQuantityField([
+      'title' => $this->t('Air temperature'),
+      'measure' => ['#value' => 'temperature'],
+      'units' => ['#value' => 'fahrenheit'],
+      'value' => ['#step' => 1],
+    ]);
+    $form['record_data']['weather']['group']['wind_speed'] = $this->buildQuantityField([
+      'title' => $this->t('Wind speed'),
+      'measure' => ['#value' => 'speed'],
+      'units' => ['#value' => 'mph'],
+      'value' => ['#step' => 1],
+    ]);
+
     $wind_directions = [
       $this->t('North'),
       $this->t('South'),
@@ -81,42 +84,37 @@ class Herbicide extends RiparianMaintenanceBase {
       '#title' => $this->t('Herbicide product'),
       '#options' => $material_type_options,
     ];
-    $form['record_data']['product']['group']['total_applied'] = [
-      '#type' => 'number',
-      '#title' => $this->t('Total product applied (qts)'),
-      '#min' => 0,
-      '#step' => 0.1,
-    ];
-    $form['record_data']['product']['group']['concentration'] = [
-      '#type' => 'number',
-      '#title' => $this->t('Product concentration (oz/gal)'),
-      '#min' => 0,
-      '#step' => 0.1,
-    ];
+    $form['record_data']['product']['group']['total_applied'] = $this->buildQuantityField([
+      'title' => $this->t('Total product applied'),
+      'measure' => ['#value' => 'volume'],
+      'units' => ['#value' => 'ounces'],
+      'value' => ['#min' => 0, '#step' => 0.05],
+    ]);
+
+    $form['record_data']['product']['group']['concentration'] = $this->buildQuantityField([
+      'title' => $this->t('Product concentration'),
+      'measure' => ['#value' => 'ratio'],
+      'units' => ['#value' => 'oz/gal'],
+      'value' => ['#min' => 0, '#step' => 0.05],
+    ]);
 
     $form['record_data']['product']['acres'] = $this->buildInlineContainer();
-    $form['record_data']['product']['acres']['acres_treated'] = [
-      '#type' => 'number',
-      '#title' => $this->t('Acres treated'),
-      '#step' => 0.1,
-    ];
-    $form['record_data']['product']['acres']['rate_per_acre'] = [
-      '#type' => 'number',
-      '#title' => $this->t('Rate per acre'),
-      '#min' => 0,
-      '#step' => 0.1,
-    ];
+    $form['record_data']['product']['acres']['acres_treated'] = $this->buildQuantityField([
+      'title' => $this->t('Acres treated'),
+      'measure' => ['#value' => 'area'],
+      'units' => ['#value' => 'acres'],
+      'value' => ['#min' => 0],
+    ]);
 
-    $form['record_data']['product']['acres']['rate_per_acre_unit'] = [
-      '#type' => 'select',
-      '#title' => $this->t('Rate units'),
-      '#options' => [
-        'ml/acre' => 'ml/acre',
-        'qts/acre' => 'qts/acre',
-        'gal/acre' => 'gal/acre',
-      ],
-    ];
-
+    $form['record_data']['product']['acres']['rate_per_acre'] = $this->buildQuantityField([
+      'title' => $this->t('Rate per acre'),
+      'measure' => ['#value' => 'rate'],
+      'units' => ['#options' => [
+        'oz/acre' => 'oz/acre',
+        'oz/gal/acre' => 'oz/gal/acre',
+      ]],
+      'value' => ['#min' => 0, '#step' => 0.05],
+    ]);
     return $form;
   }
 
@@ -128,20 +126,8 @@ class Herbicide extends RiparianMaintenanceBase {
 
     // Add data to individual record logs.
     if ($form_state->getValue('schedule') == 'record') {
-      $log['quantity'][] = [
-        'type' => 'standard',
-        'label' => 'Air temperature (F)',
-        'value' => $form_state->getValue('air_temp'),
-        'measure' => 'temperature',
-        'units' => $this->createOrLoadTerm('fahrenheit', 'unit'),
-      ];
-      $log['quantity'][] = [
-        'type' => 'standard',
-        'label' => 'Wind speed',
-        'value' => $form_state->getValue('wind_speed'),
-        'measure' => 'speed',
-        'units' => $this->createOrLoadTerm('mph', 'unit'),
-      ];
+      $log['quantity'][] = $form_state->getValue('air_temp');
+      $log['quantity'][] = $form_state->getValue('wind_speed');
 
       // Save wind direction to notes.
       $old_notes = $log['notes'] ?? '';
@@ -152,41 +138,26 @@ class Herbicide extends RiparianMaintenanceBase {
       $material = $this->entityTypeManager->getStorage('taxonomy_term')->load($material_id);
 
       // Product quantities.
-      $log['quantity'][] = [
-        'type' => 'material',
-        'label' => 'Total product applied',
-        'value' => $form_state->getValue('total_product_applied'),
-        'units' => $this->createOrLoadTerm('qts', 'unit'),
-        'material_type' => $material,
-      ];
-      $log['quantity'][] = [
-        'type' => 'material',
-        'label' => 'Product concentration',
-        'value' => $form_state->getValue('total_product_applied'),
-        'measure' => 'ratio',
-        'units' => $this->createOrLoadTerm('oz/gal', 'unit'),
-        'material_type' => $material,
-      ];
+      $total_applied = $form_state->getValue('total_applied');
+      $total_applied['type'] = 'material';
+      $total_applied['material_type'] = $material;
+      $log['quantity'][] = $total_applied;
+
+      $concentration = $form_state->getValue('concentration');
+      $concentration['type'] = 'material';
+      $concentration['material_type'] = $material;
+      $log['quantity'][] = $concentration;
 
       // Acre quantities.
-      $log['quantity'][] = [
-        'type' => 'material',
-        'label' => 'Acres treated',
-        'value' => $form_state->getValue('acres_treated'),
-        'measure' => 'area',
-        'units' => $this->createOrLoadTerm('acres', 'unit'),
-        'material_type' => $material,
-      ];
-      $rate_unit_label = $form_state->getValue('rate_per_acre_unit');
-      $rate_unit = $this->createOrLoadTerm($rate_unit_label, 'unit');
-      $log['quantity'][] = [
-        'type' => 'material',
-        'label' => 'Rate per acre',
-        'value' => $form_state->getValue('acres_treated'),
-        'measure' => 'rate',
-        'units' => $rate_unit,
-        'material_type' => $material,
-      ];
+      $acres_treated = $form_state->getValue('acres_treated');
+      $acres_treated['type'] = 'material';
+      $acres_treated['material_type'] = $material;
+      $log['quantity'][] = $acres_treated;
+
+      $rate_per_acre = $form_state->getValue('rate_per_acre');
+      $rate_per_acre['type'] = 'material';
+      $rate_per_acre['material_type'] = $material;
+      $log['quantity'][] = $rate_per_acre;
     }
 
     return $log;

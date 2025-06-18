@@ -121,8 +121,8 @@ class Herbicide extends RiparianMaintenanceBase {
   /**
    * {@inheritdoc}
    */
-  protected function prepareLog(array $form, FormStateInterface $form_state): array {
-    $log = parent::prepareLog($form, $form_state);
+  protected function prepareLog(bool $modify_existing, array $form, FormStateInterface $form_state): array {
+    $log = parent::prepareLog($modify_existing, $form, $form_state);
 
     // Add data to individual record logs.
     if ($form_state->getValue('schedule') == 'record') {

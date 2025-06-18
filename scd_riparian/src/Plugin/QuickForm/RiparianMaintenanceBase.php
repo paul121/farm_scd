@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Drupal\scd_riparian\Plugin\QuickForm;
 
+use Drupal\asset\Entity\AssetInterface;
 use Drupal\Core\Access\AccessResult;
 use Drupal\Core\Datetime\DrupalDateTime;
 use Drupal\Core\Entity\EntityTypeManagerInterface;
@@ -17,9 +18,12 @@ use Drupal\farm_quick\Traits\ConfigurableQuickFormTrait;
 use Drupal\farm_quick\Traits\QuickFormElementsTrait;
 use Drupal\farm_quick\Traits\QuickLogTrait;
 use Drupal\farm_quick\Traits\QuickTermTrait;
+use Drupal\log\Entity\Log;
+use Drupal\log\Entity\LogInterface;
 use Drupal\scd_riparian\Traits\QuickQuantityFieldTrait;
 use Drupal\user\UserInterface;
 use Psr\Container\ContainerInterface;
+use Symfony\Component\HttpFoundation\Request;
 
 /**
  * Quick form base class.
@@ -45,6 +49,13 @@ class RiparianMaintenanceBase extends QuickFormBase implements ConfigurableQuick
    * @var string
    */
   protected string $maintenanceLabel;
+
+  /**
+   * Default values to use when initializing the form.
+   *
+   * @var array
+   */
+  protected $defaultValues = [];
 
   public function __construct(
     array $configuration,
@@ -96,6 +107,9 @@ class RiparianMaintenanceBase extends QuickFormBase implements ConfigurableQuick
    */
   public function buildForm(array $form, FormStateInterface $form_state, ?string $id = NULL) {
 
+    $this->buildDefaults(\Drupal::request());;
+    $modify_existing_log = $this->defaultValues['log'] instanceof LogInterface;
+
     $form['parent'] = [
       '#type' => 'entity_autocomplete',
       '#title' => $this->t('Site name'),
@@ -116,7 +130,13 @@ class RiparianMaintenanceBase extends QuickFormBase implements ConfigurableQuick
         'wrapper' => 'asset-wrapper',
         'event' => 'autocompleteclose change',
       ],
+      '#default_value' => $this->defaultValues['parent'] ?? NULL,
     ];
+
+    // Set parent entity ID.
+    if ($modify_existing_log && isset($this->defaultValues['parent'])) {
+      $form_state->setValue('parent', $this->defaultValues['parent']->id());
+    }
 
     $form['asset_wrapper'] = [
       '#type' => 'container',
@@ -127,13 +147,22 @@ class RiparianMaintenanceBase extends QuickFormBase implements ConfigurableQuick
 
     // Add sub-site asset selection.
     if (($parent = $form_state->getValue('parent')) && is_numeric($parent)) {
+
+      // Build options and default values.
       $options = $this->getSubSiteOptions((int) $parent);
-      $form['asset_wrapper']['asset'] = [
+      $default_values = array_keys($options);
+      if ($modify_existing_log) {
+        $default_values = array_map(function (AssetInterface $asset) {
+          return $asset->id();
+        }, $this->defaultValues['location']);
+      }
+
+      $form['asset_wrapper']['location'] = [
         '#type' => 'checkboxes',
         '#title' => $this->t('Sub-sites'),
         '#description' => $this->t('Select sub-sites of the selected site.'),
         '#options' => $options,
-        '#default_value' => array_keys($options),
+        '#default_value' => $default_values,
         '#required' => TRUE,
       ];
     }
@@ -144,51 +173,60 @@ class RiparianMaintenanceBase extends QuickFormBase implements ConfigurableQuick
       '#title' => $this->t('Crew lead'),
       '#options' => $crew_lead_options,
       '#required' => TRUE,
+      '#default_value' => $modify_existing_log ? $this->defaultValues['owner'] : NULL,
     ];
 
     $form['schedule'] = [
-      '#type' => 'radios',
+      '#type' => 'hidden',
       '#title' => $this->t('Scheduling'),
       '#options' => [
         'schedule' => "Schedule $this->maintenanceLabel",
         'record' => "Record single $this->maintenanceLabel",
       ],
       '#default_value' => 'schedule',
+      '#value' => 'record',
     ];
 
-    $form['schedule_data'] = [
-      '#type' => 'details',
-      '#title' => $this->t('Scheduling'),
-      '#tree' => TRUE,
-      '#open' => TRUE,
-      '#states' => [
-        'visible' => [
-          ':input[name="schedule"]' => ['value' => 'schedule'],
+    // Expose scheduling information if not modifying an existing log.
+    if (!$modify_existing_log) {
+
+      $form['schedule']['#type'] = 'radios';
+      unset($form['schedule']['#value']);
+
+      $form['schedule_data'] = [
+        '#type' => 'details',
+        '#title' => $this->t('Scheduling'),
+        '#tree' => TRUE,
+        '#open' => TRUE,
+        '#states' => [
+          'visible' => [
+            ':input[name="schedule"]' => ['value' => 'schedule'],
+          ],
         ],
-      ],
-    ];
+      ];
 
-    $form['schedule_data']['date'] = $this->buildInlineContainer();
+      $form['schedule_data']['date'] = $this->buildInlineContainer();
 
-    $form['schedule_data']['date']['start_date'] = [
-      '#type' => 'datetime',
-      '#title' => $this->t('Start'),
-      '#default_value' => new DrupalDateTime('today 12:00', $this->currentUser->getTimeZone()),
-    ];
+      $form['schedule_data']['date']['start_date'] = [
+        '#type' => 'datetime',
+        '#title' => $this->t('Start'),
+        '#default_value' => new DrupalDateTime('today 12:00', $this->currentUser->getTimeZone()),
+      ];
 
-    $form['schedule_data']['date']['end_date'] = [
-      '#type' => 'datetime',
-      '#title' => $this->t('End'),
-      '#default_value' => new DrupalDateTime('today 12:00', $this->currentUser->getTimeZone()),
-    ];
+      $form['schedule_data']['date']['end_date'] = [
+        '#type' => 'datetime',
+        '#title' => $this->t('End'),
+        '#default_value' => new DrupalDateTime('today 12:00', $this->currentUser->getTimeZone()),
+      ];
 
-    $form['schedule_data']['week_interval'] = [
-      '#type' => 'number',
-      '#title' => $this->t('Weeks'),
-      '#description' => "Number of weeks to schedule between each $this->maintenanceLabel activity.",
-      '#min' => 1,
-      '#default_value' => 2,
-    ];
+      $form['schedule_data']['week_interval'] = [
+        '#type' => 'number',
+        '#title' => $this->t('Weeks'),
+        '#description' => "Number of weeks to schedule between each $this->maintenanceLabel activity.",
+        '#min' => 1,
+        '#default_value' => 2,
+      ];
+    }
 
     $form['record_data'] = [
       '#type' => 'details',
@@ -201,6 +239,14 @@ class RiparianMaintenanceBase extends QuickFormBase implements ConfigurableQuick
       ],
     ];
 
+    // Save existing log ID if modifying existing.
+    if ($modify_existing_log) {
+      $form['record_data']['log_id'] = [
+        '#type' => 'hidden',
+        '#value' => $this->defaultValues['log']->id(),
+      ];
+    }
+
     $form['record_data']['done'] = [
       '#type' => 'checkbox',
       '#title' => $this->t('Completed'),
@@ -208,10 +254,11 @@ class RiparianMaintenanceBase extends QuickFormBase implements ConfigurableQuick
     ];
 
     $form['record_data']['time'] = $this->buildInlineContainer();
+    $default_time = $modify_existing_log ? $this->defaultValues['timestamp'] : new DrupalDateTime('now', $this->currentUser->getTimeZone());
     $form['record_data']['time']['timestamp'] = [
       '#type' => 'datetime',
       '#title' => $this->t('Date'),
-      '#default_value' => new DrupalDateTime('midnight', $this->currentUser->getTimeZone()),
+      '#default_value' => $default_time,
     ];
 
     $form['record_data']['time']['time_taken'] = $this->buildQuantityField([
@@ -323,9 +370,69 @@ class RiparianMaintenanceBase extends QuickFormBase implements ConfigurableQuick
   }
 
   /**
+   * Helper function to build form defaults.
+   *
+   * @param \Symfony\Component\HttpFoundation\Request $request
+   *   The request.
+   */
+  protected function buildDefaults(Request $request) {
+
+    // Build common defaults if a log is provided.
+    if ($log_id = $request->get('log')) {
+
+      $log = $this->entityTypeManager->getStorage('log')->load($log_id);
+      if (!$log) {
+        $this->messenger->addError($this->t('Invalid log provided.'));
+        return;
+      }
+      if ($log->get('status')->value == 'done') {
+        $this->messenger->addError($this->t('This log has already been completed.'));
+        return;
+      }
+
+      // Save the log.
+      $this->defaultValues['log'] = $log;
+
+      // Timestamp.
+      $timestamp = $log->get('timestamp')->value;
+      $this->defaultValues['timestamp'] = new DrupalDateTime("@$timestamp", $this->currentUser->getTimeZone());
+
+      // Owner.
+      $this->defaultValues['owner'] = $log->get('owner')->target_id;
+
+      // Locations.
+      $this->defaultValues['location'] = $log->get('location')->referencedEntities();
+
+      // Get the first site parent.
+      $site_parent = NULL;
+      foreach ($this->defaultValues['location'] as $location) {
+        if ($location->bundle() == 'land' && $location->get('land_type')->value == 'site') {
+          if (!$location->get('parent')->isEmpty()) {
+            $parents = $location->get('parent')->referencedEntities();
+            $site_parent = reset($parents);
+          }
+        }
+      }
+      $this->defaultValues['parent'] = $site_parent ?: NULL;
+
+      // Notes.
+      $this->defaultValues['notes'] = [];
+      if (($notes = $log->get('notes')->value) && $lines = explode(PHP_EOL, $notes)) {
+        foreach ($lines as $line) {
+          if (($parts = explode(':', $line)) && count($parts) == 2) {
+            $this->defaultValues['notes'][$parts[0]] = trim($parts[1]);
+          }
+        }
+      }
+    }
+  }
+
+  /**
    * {@inheritdoc}
    */
   public function submitForm(array &$form, FormStateInterface $form_state) {
+
+    $existing_log_id = $form_state->getValue('log_id');
 
     if ($form_state->getValue('schedule') == 'schedule') {
 
@@ -349,9 +456,8 @@ class RiparianMaintenanceBase extends QuickFormBase implements ConfigurableQuick
       while ($current_date <= $end_timestamp) {
 
         // Create the log.
-        $log = $this->prepareLog($form, $form_state);
+        $log = $this->prepareLog(FALSE, $form, $form_state);
         $log['timestamp'] = $current_date;
-        $log['revision_log_message'] = 'Scheduled by ' . $this->currentUser->getAccountName();
         $this->createLog($log);
 
         // Move to next interval.
@@ -364,8 +470,36 @@ class RiparianMaintenanceBase extends QuickFormBase implements ConfigurableQuick
     }
 
     if ($form_state->getValue('schedule') == 'record') {
-      $log = $this->prepareLog($form, $form_state);
-      $this->createLog($log);
+      $log_data = $this->prepareLog((bool) $existing_log_id, $form, $form_state);
+
+      // Update existing log.
+      if ($existing_log_id) {
+        $existing_log = Log::load($existing_log_id);
+        foreach ($log_data as $field => $value) {
+          switch ($field) {
+            case 'quantity':
+              foreach ($value as $quantity_data) {
+                $quantity = $this->createQuantity($quantity_data);
+                $existing_log->get('quantity')->appendItem($quantity);
+              }
+              break;
+            default:
+              $existing_log->set($field, $value);
+              break;
+          }
+        }
+
+        // Display a message with a link to the log.
+        $existing_log->save();
+        $message = $this->t('Log saved: <a href=":url">@name</a>', [':url' => $existing_log->toUrl()->toString(), '@name' => $existing_log->label()]);
+        $this->messenger->addStatus($message);
+      }
+      else {
+
+        // Else create a new log.
+        $this->createLog($log_data);
+      }
+
     }
 
   }
@@ -383,22 +517,30 @@ class RiparianMaintenanceBase extends QuickFormBase implements ConfigurableQuick
    *
    * @see \Drupal\farm_quick\Traits\QuickLogTrait::createLog()
    */
-  protected function prepareLog(array $form, FormStateInterface $form_state): array {
+  protected function prepareLog(bool $modify_existing, array $form, FormStateInterface $form_state): array {
 
     // Start an array of log data to pass to QuickLogTrait::createLog.
     $log = [
-      'type' => $this->logType,
-      'status' => 'pending',
-      'name' => $form_state,
-      'location' => Checkboxes::getCheckedCheckboxes($form_state->getValue('asset')),
+      'location' => Checkboxes::getCheckedCheckboxes($form_state->getValue('location')),
       'owner' => $form_state->getValue('owner'),
-      'category' => $this->configuration['log_category'] ?? NULL,
       'quantity' => [],
     ];
 
-    $parent_id = $form_state->getValue('parent');
-    if ($parent = $this->entityTypeManager->getStorage('asset')->load($parent_id)) {
-      $log['name'] = "{$parent->label()} $this->maintenanceLabel";
+    // Add additional values if creating a new log.
+    if (!$modify_existing) {
+      $log += [
+        'type' => $this->logType,
+        'status' => 'pending',
+        'name' => $form_state,
+        'category' => $this->configuration['log_category'] ?? NULL,
+        'revision_log_message' => 'Scheduled by ' . $this->currentUser->getAccountName(),
+        'revision_user' => $this->currentUser,
+      ];
+
+      $parent_id = $form_state->getValue('parent');
+      if ($parent = $this->entityTypeManager->getStorage('asset')->load($parent_id)) {
+        $log['name'] = "{$parent->label()} $this->maintenanceLabel";
+      }
     }
 
     if ($form_state->getValue('schedule') == 'record') {

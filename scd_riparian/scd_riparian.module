@@ -1,0 +1,51 @@
+<?php
+
+/**
+ * @file
+ * The scd_riparian module.
+ */
+
+declare(strict_types=1);
+
+use Drupal\Core\Entity\Display\EntityViewDisplayInterface;
+use Drupal\Core\Entity\EntityInterface;
+use Drupal\Core\Link;
+use Drupal\Core\StringTranslation\TranslatableMarkup;
+use Drupal\Core\Url;
+use Drupal\farm_quick\Entity\QuickFormInstance;
+use Drupal\log\Entity\LogInterface;
+
+/**
+ * Implements hook_ENTITY_TYPE_view().
+ */
+function scd_riparian_log_view(array &$build, EntityInterface $entity, EntityViewDisplayInterface $display, $view_mode) {
+
+  // Add message to complete riparian maintenance logs in their quick form.
+  $target_quick_forms = [
+    'riparian_herbicide',
+    'riparian_mowing',
+    'riparian_watering',
+  ];
+  if (
+    $entity instanceof LogInterface &&
+    !$entity->get('quick')->isEmpty() &&
+    $entity->get('status')->value == 'pending'
+  ) {
+    $quick_forms = array_column($entity->get('quick')->getValue(), 'value');
+    foreach ($quick_forms as $quick_id) {
+      if (in_array($quick_id, $target_quick_forms) && $quick_form = QuickFormInstance::load($quick_id)) {
+        $url = Url::fromRoute(
+          "farm.quick.$quick_id",
+          [],
+          ['query' => ['log' => $entity->id()]],
+        );
+        Drupal::messenger()->addMessage(new TranslatableMarkup(
+          'Complete this log in <a href=":url">@quick</a> quick form',
+          [':url' => $url->toString(), '@quick' => $quick_form->label()],
+        ));
+      }
+
+    }
+  }
+
+}

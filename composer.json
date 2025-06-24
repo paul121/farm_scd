@@ -1,0 +1,14 @@
+{
+  "name": "paul121/farm_scd",
+  "description": "Custom farmOS features for Spokane Conservation District.",
+  "type": "drupal-module",
+  "authors": [
+      {
+          "name": "Paul Weidner",
+          "email": "paul.weidner@gmail.com"
+      }
+  ],
+  "require": {
+    "farmos/farmos": "^3.4"
+  }
+}

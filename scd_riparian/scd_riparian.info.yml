@@ -6,6 +6,7 @@ core_version_requirement: ^10
 dependencies:
   - farm_activity
   - farm_input
+  - farm_import
   - farm_land
   - farm_observation
   - farm_quick

@@ -524,6 +524,7 @@ class RiparianMaintenanceBase extends QuickFormBase implements ConfigurableQuick
       'location' => Checkboxes::getCheckedCheckboxes($form_state->getValue('location')),
       'owner' => $form_state->getValue('owner'),
       'quantity' => [],
+      'revision_user' => $this->currentUser->id(),
     ];
 
     // Add additional values if creating a new log.
@@ -534,7 +535,6 @@ class RiparianMaintenanceBase extends QuickFormBase implements ConfigurableQuick
         'name' => $form_state,
         'category' => $this->configuration['log_category'] ?? NULL,
         'revision_log_message' => 'Scheduled by ' . $this->currentUser->getAccountName(),
-        'revision_user' => $this->currentUser->id(),
       ];
 
       $parent_id = $form_state->getValue('parent');
@@ -545,6 +545,13 @@ class RiparianMaintenanceBase extends QuickFormBase implements ConfigurableQuick
 
     if ($form_state->getValue('schedule') == 'record') {
       $log['status'] = $form_state->getValue('done') ? 'done' : 'pending';
+
+      if ($log['status'] == 'done') {
+        $log['revision_log_message'] = 'Completed by ' . $this->currentUser->getAccountName();
+      } else {
+        $log['revision_log_message'] = 'Updated by ' . $this->currentUser->getAccountName();
+      }
+
       $log['timestamp'] = $form_state->getValue('timestamp')->getTimestamp();
       $log['notes'] = $form_state->getValue('notes');
 

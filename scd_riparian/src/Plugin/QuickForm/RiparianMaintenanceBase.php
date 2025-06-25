@@ -499,9 +499,10 @@ class RiparianMaintenanceBase extends QuickFormBase implements ConfigurableQuick
         // Else create a new log.
         $this->createLog($log_data);
       }
-
     }
 
+    // Redirect to quick form without query params.
+    $form_state->setRedirect("farm.quick.{$this->getQuickId()}");
   }
 
   /**

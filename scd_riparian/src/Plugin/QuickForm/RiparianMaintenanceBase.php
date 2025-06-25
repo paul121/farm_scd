@@ -108,7 +108,7 @@ class RiparianMaintenanceBase extends QuickFormBase implements ConfigurableQuick
   public function buildForm(array $form, FormStateInterface $form_state, ?string $id = NULL) {
 
     $this->buildDefaults(\Drupal::request());;
-    $modify_existing_log = $this->defaultValues['log'] instanceof LogInterface;
+    $modify_existing_log = $this->defaultValues['log'] ?? NULL instanceof LogInterface;
 
     $form['parent'] = [
       '#type' => 'entity_autocomplete',

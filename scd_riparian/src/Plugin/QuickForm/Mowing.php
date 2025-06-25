@@ -11,6 +11,7 @@ namespace Drupal\scd_riparian\Plugin\QuickForm;
  *   description = @Translation("Record riparian mowing activities."),
  *   helpText = @Translation("Use this form to record riparian mowing activities."),
  *   permissions = {},
+ *   requiresEntity = True
  * )
  */
 class Mowing extends RiparianMaintenanceBase {

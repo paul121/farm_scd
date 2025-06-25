@@ -13,6 +13,7 @@ use Drupal\Core\Form\FormStateInterface;
  *   description = @Translation("Record riparian herbicide activities."),
  *   helpText = @Translation("Use this form to record riparian herbicide activities."),
  *   permissions = {},
+ *   requiresEntity = True
  * )
  */
 class Herbicide extends RiparianMaintenanceBase {

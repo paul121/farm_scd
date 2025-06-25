@@ -66,7 +66,6 @@ class Herbicide extends RiparianMaintenanceBase {
       '#type' => 'select',
       '#title' => $this->t('Wind direction'),
       '#options' => $wind_direction_options,
-      '#required' => TRUE,
     ];
 
     $form['record_data']['product']= [

@@ -11,7 +11,6 @@ namespace Drupal\scd_riparian\Plugin\QuickForm;
  *   description = @Translation("Record riparian watering activities."),
  *   helpText = @Translation("Use this form to record riparian watering activities."),
  *   permissions = {},
- *   requiresEntity = True
  * )
  */
 class Watering extends RiparianMaintenanceBase {

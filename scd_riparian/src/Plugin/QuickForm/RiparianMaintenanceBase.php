@@ -534,7 +534,7 @@ class RiparianMaintenanceBase extends QuickFormBase implements ConfigurableQuick
         'name' => $form_state,
         'category' => $this->configuration['log_category'] ?? NULL,
         'revision_log_message' => 'Scheduled by ' . $this->currentUser->getAccountName(),
-        'revision_user' => $this->currentUser,
+        'revision_user' => $this->currentUser->id(),
       ];
 
       $parent_id = $form_state->getValue('parent');

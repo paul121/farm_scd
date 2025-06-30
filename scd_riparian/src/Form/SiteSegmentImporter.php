@@ -9,6 +9,7 @@ use Drupal\Core\File\FileSystemInterface;
 use Drupal\Core\Form\FormBase;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\asset\Entity\Asset;
+use Drupal\farm_geo\Traits\WktTrait;
 use Drupal\geofield\GeoPHP\GeoPHPInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\Serializer\SerializerInterface;
@@ -17,6 +18,8 @@ use Symfony\Component\Serializer\SerializerInterface;
  * Provides a form for importing folders of KML placemarks as sites and segments.
  */
 class SiteSegmentImporter extends FormBase {
+
+  use WktTrait;
 
   public function __construct(
     protected EntityTypeManagerInterface $entityTypeManager,
@@ -130,6 +133,7 @@ class SiteSegmentImporter extends FormBase {
           $raw_geom = $placemark->asXML();
           if ($geometry = $this->geoPhp->load($raw_geom, 'kml')) {
             $wkt = $geometry->out('wkt');
+            $wkt = $this->reduceWkt($wkt);
           }
           $name = (string) $placemark->name ?? "$default_site_name $count";
           $placemarks[] = [$name, $wkt];
@@ -148,6 +152,19 @@ class SiteSegmentImporter extends FormBase {
     $form['output']['#title'] = $this->t('Output');
     $form['output']['#open'] = TRUE;
 
+    $form['output']['map'] = [
+      '#type' => 'farm_map',
+      '#map_type' => 'geofield',
+      '#map_settings' => [
+        'wkt' => NULL,
+        'behaviors' => [
+          'wkt' => [
+            'zoom' => TRUE,
+          ],
+        ],
+      ],
+    ];
+
     $form['output']['site_name'] = [
       '#type' => 'textfield',
       '#title' => $this->t('Site name'),
@@ -156,6 +173,7 @@ class SiteSegmentImporter extends FormBase {
     ];
 
     // Build a tree for asset data.
+    $all_wkt = [];
     $form['output']['assets'] = [
       '#type' => 'container',
       '#tree' => TRUE,
@@ -163,9 +181,11 @@ class SiteSegmentImporter extends FormBase {
     foreach ($placemarks as $index => $placemark_data) {
 
       // Create a fieldset for the geometry.
+      $all_wkt[] = $placemark_data[1];
+      $count = $index + 1;
       $form['output']['assets'][$index] = [
         '#type' => 'fieldset',
-        '#title' => "Segment $index"
+        '#title' => "Segment $count"
       ];
 
       $form['output']['assets'][$index]['name'] = [
@@ -183,7 +203,7 @@ class SiteSegmentImporter extends FormBase {
       $form['output']['assets'][$index]['geometry'] = [
         '#type' => 'textarea',
         '#title' => $this->t('Geometry'),
-        '#default_value' => $wkt,
+        '#default_value' => $placemark_data[1],
       ];
 
       $form['output']['assets'][$index]['confirm'] = [
@@ -192,6 +212,11 @@ class SiteSegmentImporter extends FormBase {
         '#description' => $this->t('Uncheck this if you do not want to create this asset in farmOS.'),
         '#default_value' => TRUE,
       ];
+    }
+
+    // Combine all WKT geom for the map.
+    if ($combined_geom = $this->combineWkt($all_wkt)) {
+      $form['output']['map']['#map_settings']['wkt'] = $combined_geom;
     }
 
     // Mark the form as parsed.

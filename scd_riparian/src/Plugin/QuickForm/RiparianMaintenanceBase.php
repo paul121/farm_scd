@@ -149,7 +149,7 @@ class RiparianMaintenanceBase extends QuickFormBase implements ConfigurableQuick
     if (($parent = $form_state->getValue('parent')) && is_numeric($parent)) {
 
       // Build options and default values.
-      $options = $this->getSubSiteOptions((int) $parent);
+      $options = $this->getSegmentOptions((int) $parent);
       $default_values = array_keys($options);
       if ($modify_existing_log) {
         $default_values = array_map(function (AssetInterface $asset) {
@@ -159,8 +159,8 @@ class RiparianMaintenanceBase extends QuickFormBase implements ConfigurableQuick
 
       $form['asset_wrapper']['location'] = [
         '#type' => 'checkboxes',
-        '#title' => $this->t('Sub-sites'),
-        '#description' => $this->t('Select sub-sites of the selected site.'),
+        '#title' => $this->t('Segment'),
+        '#description' => $this->t('Segments of the selected site.'),
         '#options' => $options,
         '#default_value' => $default_values,
         '#required' => TRUE,
@@ -309,7 +309,7 @@ class RiparianMaintenanceBase extends QuickFormBase implements ConfigurableQuick
   }
 
   /**
-   * Helper function to load sub-site options for a given parent.
+   * Helper function to load segment options for a given parent.
    *
    * @param int $parent_id
    *   The parent asset ID.
@@ -317,13 +317,13 @@ class RiparianMaintenanceBase extends QuickFormBase implements ConfigurableQuick
    * @return array
    *   Return array of options.
    */
-  protected function getSubSiteOptions(int $parent_id): array {
+  protected function getSegmentOptions(int $parent_id): array {
     $asset_ids = $this->entityTypeManager->getStorage('asset')->getQuery()
       ->accessCheck()
       ->condition('status', 'archived', '!=')
       ->condition('parent', $parent_id)
       ->condition('type', 'land')
-      ->condition('land_type', 'site')
+      ->condition('land_type', 'scd_segment')
       ->sort('id')
       ->execute();
     $sites = $this->entityTypeManager->getStorage('asset')->loadMultiple($asset_ids);
@@ -406,7 +406,7 @@ class RiparianMaintenanceBase extends QuickFormBase implements ConfigurableQuick
       // Get the first site parent.
       $site_parent = NULL;
       foreach ($this->defaultValues['location'] as $location) {
-        if ($location->bundle() == 'land' && $location->get('land_type')->value == 'site') {
+        if ($location->bundle() == 'land' && $location->get('land_type')->value == 'scd_segment') {
           if (!$location->get('parent')->isEmpty()) {
             $parents = $location->get('parent')->referencedEntities();
             $site_parent = reset($parents);

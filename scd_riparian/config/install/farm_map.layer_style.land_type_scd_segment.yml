@@ -10,4 +10,4 @@ conditions:
   asset_type:
     - land
   land_type:
-    - site
+    - scd_segment

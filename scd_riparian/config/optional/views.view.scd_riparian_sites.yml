@@ -160,7 +160,7 @@ display:
           plugin_id: list_field
           operator: or
           value:
-            site: site
+            site: scd_segment
           group: 1
           exposed: false
           expose:

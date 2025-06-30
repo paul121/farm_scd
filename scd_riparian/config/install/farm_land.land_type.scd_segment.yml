@@ -4,5 +4,5 @@ dependencies:
   enforced:
     module:
       - scd_riparian
-id: site
-label: Site
+id: scd_segment
+label: Segment

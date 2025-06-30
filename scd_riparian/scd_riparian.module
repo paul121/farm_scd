@@ -43,8 +43,8 @@ function scd_riparian_log_view(array &$build, EntityInterface $entity, EntityVie
           'Complete this log in <a href=":url">@quick</a> quick form',
           [':url' => $url->toString(), '@quick' => $quick_form->label()],
         ));
+        return;
       }
-
     }
   }
 

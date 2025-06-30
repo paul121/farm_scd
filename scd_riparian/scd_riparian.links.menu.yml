@@ -1,0 +1,4 @@
+scd_riparian.site_kml:
+  title: Site and Segment Import
+  parent: farm.import
+  route_name: scd_riparian.site_kml

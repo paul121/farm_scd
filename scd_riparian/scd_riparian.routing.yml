@@ -1,0 +1,7 @@
+scd_riparian.site_kml:
+  path: '/import/sites'
+  defaults:
+    _form: Drupal\scd_riparian\Form\SiteSegmentImporter
+    _title: 'Riparian Site KML Import'
+  requirements:
+    _permission: 'create land asset'

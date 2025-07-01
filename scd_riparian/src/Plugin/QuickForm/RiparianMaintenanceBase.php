@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Drupal\scd_riparian\Plugin\QuickForm;
 
+use DateInterval;
 use Drupal\asset\Entity\AssetInterface;
 use Drupal\Core\Access\AccessResult;
 use Drupal\Core\Datetime\DrupalDateTime;
@@ -107,8 +108,13 @@ class RiparianMaintenanceBase extends QuickFormBase implements ConfigurableQuick
    */
   public function buildForm(array $form, FormStateInterface $form_state, ?string $id = NULL) {
 
+    // Build default values from existing log.
     $this->buildDefaults(\Drupal::request());;
-    $modify_existing_log = $this->defaultValues['log'] ?? NULL instanceof LogInterface;
+    $existing_log = $this->defaultValues['log'] ?? NULL;
+    $has_existing_log = $existing_log instanceof LogInterface;
+
+    // Use the log status to determine if we are modifying or scheduling.
+    $modify_existing_log = $has_existing_log && $existing_log->get('status')->value != 'done';
 
     $form['parent'] = [
       '#type' => 'entity_autocomplete',
@@ -134,7 +140,7 @@ class RiparianMaintenanceBase extends QuickFormBase implements ConfigurableQuick
     ];
 
     // Set parent entity ID.
-    if ($modify_existing_log && isset($this->defaultValues['parent'])) {
+    if ($has_existing_log && isset($this->defaultValues['parent'])) {
       $form_state->setValue('parent', $this->defaultValues['parent']->id());
     }
 
@@ -151,7 +157,7 @@ class RiparianMaintenanceBase extends QuickFormBase implements ConfigurableQuick
       // Build options and default values.
       $options = $this->getSegmentOptions((int) $parent);
       $default_values = array_keys($options);
-      if ($modify_existing_log) {
+      if ($has_existing_log) {
         $default_values = array_map(function (AssetInterface $asset) {
           return $asset->id();
         }, $this->defaultValues['location']);
@@ -173,7 +179,7 @@ class RiparianMaintenanceBase extends QuickFormBase implements ConfigurableQuick
       '#title' => $this->t('Crew lead'),
       '#options' => $crew_lead_options,
       '#required' => TRUE,
-      '#default_value' => $modify_existing_log ? $this->defaultValues['owner'] : NULL,
+      '#default_value' => $has_existing_log ? $this->defaultValues['owner'] : NULL,
     ];
 
     $form['schedule'] = [
@@ -186,6 +192,10 @@ class RiparianMaintenanceBase extends QuickFormBase implements ConfigurableQuick
       '#default_value' => 'schedule',
       '#value' => 'record',
     ];
+
+    // Save default time from existing log. This is used for both scheduling
+    // and recording completed logs.
+    $default_time = $has_existing_log ? $this->defaultValues['timestamp']->modify('+1 week') : new DrupalDateTime('today 12:00', $this->currentUser->getTimeZone());
 
     // Expose scheduling information if not modifying an existing log.
     if (!$modify_existing_log) {
@@ -210,13 +220,15 @@ class RiparianMaintenanceBase extends QuickFormBase implements ConfigurableQuick
       $form['schedule_data']['date']['start_date'] = [
         '#type' => 'datetime',
         '#title' => $this->t('Start'),
-        '#default_value' => new DrupalDateTime('today 12:00', $this->currentUser->getTimeZone()),
+        '#default_value' => $default_time,
       ];
 
+      $end_date = clone $default_time;
+      $end_date->modify('+1 week');
       $form['schedule_data']['date']['end_date'] = [
         '#type' => 'datetime',
         '#title' => $this->t('End'),
-        '#default_value' => new DrupalDateTime('today 12:00', $this->currentUser->getTimeZone()),
+        '#default_value' => $end_date,
       ];
 
       $form['schedule_data']['week_interval'] = [
@@ -254,7 +266,6 @@ class RiparianMaintenanceBase extends QuickFormBase implements ConfigurableQuick
     ];
 
     $form['record_data']['time'] = $this->buildInlineContainer();
-    $default_time = $modify_existing_log ? $this->defaultValues['timestamp'] : new DrupalDateTime('now', $this->currentUser->getTimeZone());
     $form['record_data']['time']['timestamp'] = [
       '#type' => 'datetime',
       '#title' => $this->t('Date'),
@@ -385,10 +396,6 @@ class RiparianMaintenanceBase extends QuickFormBase implements ConfigurableQuick
         $this->messenger->addError($this->t('Invalid log provided.'));
         return;
       }
-      if ($log->get('status')->value == 'done') {
-        $this->messenger->addError($this->t('This log has already been completed.'));
-        return;
-      }
 
       // Save the log.
       $this->defaultValues['log'] = $log;
@@ -469,6 +476,7 @@ class RiparianMaintenanceBase extends QuickFormBase implements ConfigurableQuick
       $this->messenger->addStatus($this->t('Created @count scheduled maintenance logs.', ['@count' => $logs_created]));
     }
 
+    $completed_log = NULL;
     if ($form_state->getValue('schedule') == 'record') {
       $log_data = $this->prepareLog((bool) $existing_log_id, $form, $form_state);
 
@@ -493,16 +501,21 @@ class RiparianMaintenanceBase extends QuickFormBase implements ConfigurableQuick
         $existing_log->save();
         $message = $this->t('Log saved: <a href=":url">@name</a>', [':url' => $existing_log->toUrl()->toString(), '@name' => $existing_log->label()]);
         $this->messenger->addStatus($message);
+        $completed_log = $existing_log;
       }
       else {
 
         // Else create a new log.
-        $this->createLog($log_data);
+        $completed_log = $this->createLog($log_data);
       }
     }
 
-    // Redirect to quick form without query params.
-    $form_state->setRedirect("farm.quick.{$this->getQuickId()}");
+    // Redirect to quick form with completed log for scheduling.
+    $form_state->setRedirect(
+      "farm.quick.{$this->getQuickId()}",
+      [],
+      ['query' => ['log' => $completed_log ? $completed_log->id() : NULL]],
+    );
   }
 
   /**

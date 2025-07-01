@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Load previously submitted log values when scheduling logs.
+
 ### 1.0.0-alpha1 - 2025-06-30
 
 Initial alpha release of `scd_riparian` module. Includes the following features:

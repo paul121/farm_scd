@@ -7,6 +7,7 @@ namespace Drupal\scd_riparian\Plugin\QuickForm;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Ajax\AjaxResponse;
 use Drupal\Core\Ajax\ReplaceCommand;
+use Drupal\Core\Url;
 
 /**
  * @QuickForm(
@@ -77,6 +78,14 @@ class Herbicide extends RiparianMaintenanceBase {
       '#prefix' => '<div id="products-wrapper">',
       '#suffix' => '</div>',
       '#tree' => TRUE,
+    ];
+
+    $taxonomy_url = Url::fromRoute('entity.taxonomy_vocabulary.overview_form', ['taxonomy_vocabulary' => 'material_type']);
+    $form['record_data']['products']['markup'] = [
+      '#markup' => $this->t(
+        'Enter the products used in this herbicide activity. The list of available products can be managed in the <a href="@url" target="_blank">Material Types taxonomy</a>',
+        ['@url' => $taxonomy_url->setAbsolute()->toString()],
+      ),
     ];
 
     $form['record_data']['products']['acres_treated'] = $this->buildQuantityField([

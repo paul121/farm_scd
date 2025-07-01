@@ -79,6 +79,13 @@ class Herbicide extends RiparianMaintenanceBase {
       '#tree' => TRUE,
     ];
 
+    $form['record_data']['products']['acres_treated'] = $this->buildQuantityField([
+      'title' => $this->t('Acres treated'),
+      'measure' => ['#value' => 'area'],
+      'units' => ['#value' => 'acres'],
+      'value' => ['#min' => 0],
+    ]);
+
     // Determine the number of products
     $num_products = $form_state->get('num_products');
     $num_products = $num_products ?: 1;
@@ -164,13 +171,6 @@ class Herbicide extends RiparianMaintenanceBase {
       'value' => ['#min' => 0, '#step' => 0.05],
     ]);
 
-    $product_entry['quantities']['acres_treated'] = $this->buildQuantityField([
-      'title' => $this->t('Acres treated'),
-      'measure' => ['#value' => 'area'],
-      'units' => ['#value' => 'acres'],
-      'value' => ['#min' => 0],
-    ]);
-
     $product_entry['quantities']['rate_per_acre'] = $this->buildQuantityField([
       'title' => $this->t('Rate per acre'),
       'measure' => ['#value' => 'rate'],
@@ -205,7 +205,10 @@ class Herbicide extends RiparianMaintenanceBase {
       $old_notes = $log['notes'] ?? '';
       $log['notes'] = "Wind direction: {$form_state->getValue('wind_direction')}\n\n$old_notes";
 
-      // Process multiple products
+      // Process multiple products.
+      // Save list of all materials.
+      $material_ids = [];
+      $material_quantities = [];
       foreach ($form_state->getValue('products') as $index => $product) {
 
         // Skip if no material is selected.
@@ -215,30 +218,34 @@ class Herbicide extends RiparianMaintenanceBase {
 
         // Load material term
         $material_id = $product['material'];
+        $material_ids[] = $material_id;
         $material = $this->entityTypeManager->getStorage('taxonomy_term')->load($material_id);
 
         // Product quantities
         $total_applied = $product['quantities']['total_applied'];
         $total_applied['type'] = 'material';
         $total_applied['material_type'] = $material;
-        $log['quantity'][] = $total_applied;
+        $material_quantities[] = $total_applied;
 
         $concentration = $product['quantities']['concentration'];
         $concentration['type'] = 'material';
         $concentration['material_type'] = $material;
-        $log['quantity'][] = $concentration;
-
-        // Acre quantities
-        $acres_treated = $product['quantities']['acres_treated'];
-        $acres_treated['type'] = 'material';
-        $acres_treated['material_type'] = $material;
-        $log['quantity'][] = $acres_treated;
+        $material_quantities[] = $concentration;
 
         $rate_per_acre = $product['quantities']['rate_per_acre'];
         $rate_per_acre['type'] = 'material';
         $rate_per_acre['material_type'] = $material;
-        $log['quantity'][] = $rate_per_acre;
+        $material_quantities[] = $rate_per_acre;
       }
+
+      // Also save acres treated as additional quantity.
+      $acres_treated = $form_state->getValue(['products', 'acres_treated']);
+      $acres_treated['type'] = 'material';
+      $acres_treated['material_type'] = $material_ids;
+      $log['quantity'][] = $acres_treated;
+
+      // Finally, add all material quantities to the log data.
+      array_push($log['quantity'], ...$material_quantities);
     }
 
     return $log;

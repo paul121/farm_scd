@@ -186,10 +186,11 @@ class RiparianMaintenanceBase extends QuickFormBase implements ConfigurableQuick
       '#type' => 'hidden',
       '#title' => $this->t('Scheduling'),
       '#options' => [
-        'schedule' => "Schedule $this->maintenanceLabel",
+        'schedule_single' => "Schedule single $this->maintenanceLabel",
+        'schedule_interval' => "Schedule multiple $this->maintenanceLabel",
         'record' => "Record single $this->maintenanceLabel",
       ],
-      '#default_value' => 'schedule',
+      '#default_value' => 'schedule_single',
       '#value' => 'record',
     ];
 
@@ -203,21 +204,41 @@ class RiparianMaintenanceBase extends QuickFormBase implements ConfigurableQuick
       $form['schedule']['#type'] = 'radios';
       unset($form['schedule']['#value']);
 
-      $form['schedule_data'] = [
+      // First, provide single schedule options.
+      $form['schedule_single'] = [
         '#type' => 'details',
-        '#title' => $this->t('Scheduling'),
+        '#title' => "Schedule single $this->maintenanceLabel",
         '#tree' => TRUE,
         '#open' => TRUE,
         '#states' => [
           'visible' => [
-            ':input[name="schedule"]' => ['value' => 'schedule'],
+            ':input[name="schedule"]' => ['value' => 'schedule_single'],
           ],
         ],
       ];
 
-      $form['schedule_data']['date'] = $this->buildInlineContainer();
+      $form['schedule_single']['date'] = [
+        '#type' => 'datetime',
+        '#title' => $this->t('Date'),
+        '#default_value' => $default_time,
+      ];
 
-      $form['schedule_data']['date']['start_date'] = [
+      // Next, provide interval schedule options.
+      $form['schedule_interval'] = [
+        '#type' => 'details',
+        '#title' => "Schedule multiple $this->maintenanceLabel",
+        '#tree' => TRUE,
+        '#open' => TRUE,
+        '#states' => [
+          'visible' => [
+            ':input[name="schedule"]' => ['value' => 'schedule_interval'],
+          ],
+        ],
+      ];
+
+      $form['schedule_interval']['date'] = $this->buildInlineContainer();
+
+      $form['schedule_interval']['date']['start_date'] = [
         '#type' => 'datetime',
         '#title' => $this->t('Start'),
         '#default_value' => $default_time,
@@ -225,13 +246,13 @@ class RiparianMaintenanceBase extends QuickFormBase implements ConfigurableQuick
 
       $end_date = clone $default_time;
       $end_date->modify('+1 week');
-      $form['schedule_data']['date']['end_date'] = [
+      $form['schedule_interval']['date']['end_date'] = [
         '#type' => 'datetime',
         '#title' => $this->t('End'),
         '#default_value' => $end_date,
       ];
 
-      $form['schedule_data']['week_interval'] = [
+      $form['schedule_interval']['week_interval'] = [
         '#type' => 'number',
         '#title' => $this->t('Weeks'),
         '#description' => "Number of weeks to schedule between each $this->maintenanceLabel activity.",
@@ -441,12 +462,23 @@ class RiparianMaintenanceBase extends QuickFormBase implements ConfigurableQuick
 
     $existing_log_id = $form_state->getValue('log_id');
 
-    if ($form_state->getValue('schedule') == 'schedule') {
+    // Schedule single log.
+    if ($form_state->getValue('schedule') == 'schedule_single') {
+
+      // Create the log.
+      $log = $this->prepareLog(FALSE, $form, $form_state);
+      $date = $form_state->getValue(['schedule_single','date']);
+      $log['timestamp'] = $date->getTimestamp();
+      $this->createLog($log);
+    }
+
+    // Schedule multiple via interval logic.
+    if ($form_state->getValue('schedule') == 'schedule_interval') {
 
       // Extract scheduling parameters
-      $start_date = $form_state->getValue('schedule_data')['date']['start_date'];
-      $end_date = $form_state->getValue('schedule_data')['date']['end_date'];
-      $week_interval = $form_state->getValue('schedule_data')['week_interval'];
+      $start_date = $form_state->getValue(['schedule_interval','date','start_date']);
+      $end_date = $form_state->getValue(['schedule_interval','date','end_date']);
+      $week_interval = $form_state->getValue(['schedule_interval','week_interval']);
 
       // Validate dates
       if (!$start_date instanceof DrupalDateTime || !$end_date instanceof DrupalDateTime) {
@@ -473,9 +505,10 @@ class RiparianMaintenanceBase extends QuickFormBase implements ConfigurableQuick
       }
 
       // Provide feedback
-      $this->messenger->addStatus($this->t('Created @count scheduled maintenance logs.', ['@count' => $logs_created]));
+      $this->messenger->addStatus($this->t('Scheduled @count maintenance logs.', ['@count' => $logs_created]));
     }
 
+    // Last, record single log.
     $completed_log = NULL;
     if ($form_state->getValue('schedule') == 'record') {
       $log_data = $this->prepareLog((bool) $existing_log_id, $form, $form_state);

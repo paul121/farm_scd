@@ -5,20 +5,18 @@ declare(strict_types=1);
 namespace Drupal\scd_riparian\Plugin\QuickForm;
 
 use Drupal\Core\Form\FormStateInterface;
-use Drupal\Core\Ajax\AjaxResponse;
-use Drupal\Core\Ajax\ReplaceCommand;
 use Drupal\Core\Url;
 
 /**
  * @QuickForm(
- *   id = "riparian_herbicide",
- *   label = @Translation("Herbicide"),
- *   description = @Translation("Record riparian herbicide activities."),
- *   helpText = @Translation("Use this form to record riparian herbicide activities."),
+ *   id = "riparian_spraying",
+ *   label = @Translation("Spraying"),
+ *   description = @Translation("Record riparian spraying activities."),
+ *   helpText = @Translation("Use this form to record riparian spraying activities."),
  *   permissions = {},
  * )
  */
-class Herbicide extends RiparianMaintenanceBase {
+class Spraying extends RiparianMaintenanceBase {
 
   /**
    * {@inheritdoc}
@@ -28,7 +26,7 @@ class Herbicide extends RiparianMaintenanceBase {
   /**
    * {@inheritdoc}
    */
-  protected string $maintenanceLabel = 'herbicide';
+  protected string $maintenanceLabel = 'spraying';
 
   /**
    * {@inheritdoc}
@@ -83,7 +81,7 @@ class Herbicide extends RiparianMaintenanceBase {
     $taxonomy_url = Url::fromRoute('entity.taxonomy_vocabulary.overview_form', ['taxonomy_vocabulary' => 'material_type']);
     $form['record_data']['products']['markup'] = [
       '#markup' => $this->t(
-        'Enter the products used in this herbicide activity. The list of available products can be managed in the <a href="@url" target="_blank">Material Types taxonomy</a>',
+        'Enter the products used in this spraying activity. The list of available products can be managed in the <a href="@url" target="_blank">Material Types taxonomy</a>',
         ['@url' => $taxonomy_url->setAbsolute()->toString()],
       ),
     ];
@@ -160,7 +158,7 @@ class Herbicide extends RiparianMaintenanceBase {
 
     $product_entry['material'] = [
       '#type' => 'select',
-      '#title' => $this->t('Herbicide product'),
+      '#title' => $this->t('Product'),
       '#options' => $material_type_options,
       '#empty_option' => $this->t('- Select -'),
     ];

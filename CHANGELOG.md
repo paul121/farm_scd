@@ -7,7 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### 1.0.0-alpha2 - 2025-07-01
+### Changed
+
+- Rename herbicide form to spraying.
+
+## 1.0.0-alpha2 - 2025-07-01
 
 ### Added
 
@@ -18,7 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Load previously submitted log values when scheduling logs.
 
-### 1.0.0-alpha1 - 2025-06-30
+## 1.0.0-alpha1 - 2025-06-30
 
 Initial alpha release of `scd_riparian` module. Includes the following features:
 - Adds `site` and `segment` land types

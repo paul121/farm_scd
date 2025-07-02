@@ -22,7 +22,7 @@ function scd_riparian_log_view(array &$build, EntityInterface $entity, EntityVie
 
   // Add message to complete riparian maintenance logs in their quick form.
   $target_quick_forms = [
-    'riparian_herbicide',
+    'riparian_spraying',
     'riparian_mowing',
     'riparian_watering',
   ];

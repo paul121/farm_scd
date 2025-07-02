@@ -102,7 +102,7 @@ class Spraying extends RiparianMaintenanceBase {
       $num_products += 1;
       $form_state->set('num_products', $num_products);
     }
-    elseif ($triggering_element && $triggering_element['#parents'][1] == 'remove_product') {
+    elseif ($triggering_element && isset($triggering_element['#parents'][1]) && $triggering_element['#parents'][1] == 'remove_product') {
       if ($num_products > 1) {
         $num_products -= 1;
       }

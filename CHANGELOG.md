@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## 1.0.0-beta1 - 2025-07-02
+
 ### Added
 
 - Add option to schedule single logs.
